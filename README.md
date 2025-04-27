@@ -4,6 +4,8 @@ Extend Superwhisper posibilities with Raycast
 
 ## demo
 
+![Superwhisper2Notes デモ](demo/superwhisper2notes.gif)
+
 ### How to use check-superwhisper-recording.js
 
 Automatically detects new SuperWhisper audio recordings and saves their transcriptions (llmResult) as new notes in the Apple Notes app.
