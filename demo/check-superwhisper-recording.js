@@ -10,10 +10,11 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-
+const { sendMail, sendToSlackApi } = require('./external-integrations');
+const dotenv = require('dotenv');
+dotenv.config();
 const RECORDINGS_DIR = '/Users/myano/Documents/superwhisper/recordings';
 const LAST_CHECK_FILE = path.join('last-superwhisper-check.json');
-
 
 function getTimestampFromPath(filePath) {
   const match = filePath.match(/\/(\d{10})\/meta\.json$/);
@@ -88,29 +89,6 @@ function saveLastCheckData(data) {
   }
 }
 
-function createAppleNote(title, content) {
-  const script = `
-    tell application "Notes"
-      tell account "iCloud"
-        make new note with properties {name:"${title}", body:"${content}"}
-      end tell
-    end tell
-  `;
-  
-  try {
-    execSync(`osascript -e '${script}'`);
-    return true;
-  } catch (error) {
-    console.error('Error creating note:', error);
-    return false;
-  }
-}
-
-function getLastCheckTime(lastCheckData) {
-  return lastCheckData.lastCheckedTime || 0;
-}
-
-
 function main() {
   const lastCheckData = getLastCheckData();
   
@@ -128,7 +106,6 @@ function main() {
   
   for (const recording of newerRecordings) {
     try {
-
       const meta = JSON.parse(fs.readFileSync(recording.path, 'utf8'));
       const title = `SuperWhisper Recording - ${new Date(recording.time * 1000).toLocaleString()}`;
       const content = meta.llmResult || 'No transcription available';
@@ -139,11 +116,18 @@ function main() {
         console.log('Skipping recording:', title);
         continue;
       }
-      
-      if (createAppleNote(title, content)) {
+      sendToSlackApi(title, content, process.env.SLACK_BOT_TOKEN, process.env.SLACK_CHANNEL_ID);
+      sendMail(title, content, {
+          host: "smtp.gmail.com",
+          port: 587,
+          secure: false,
+          from: process.env.MAIL_FROM,
+          to: process.env.MAIL_TO,
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASS
+        });
         console.log('Successfully processed recording:', recording.path);
         latestProcessedTime = Math.max(latestProcessedTime, recording.time);
-      }
     } catch (error) {
       console.error(`Error processing ${recording.path}:`, error);
     }
